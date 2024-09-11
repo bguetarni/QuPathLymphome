@@ -38,7 +38,7 @@ DISPLAY_GENERAL_INFORMATION = true
 DOWNSAMPLE_FACTOR_PNG = 1.5
 
 DASH_URL = "127.0.0.1"
-DASH_PORT = 8050
+DASH_PORT = "8050"
 
 // ====================================================
 
@@ -223,68 +223,70 @@ if (!new File(imageFolder).exists()) {
     new File(imageFolder).mkdirs()
 }
 
-for (roi in rois) {
-    // Get the annotation name using getName() method
-    String annotationName = roi.getName()
+// We only work with one annotation for now
+// TBD later: handle multiple annotations at once
+roi = rois[0]
 
-    // Create the annotation folder path within wsi folder
-    if (annotationName == null) {
-        int resp = JOptionPane.showConfirmDialog(null, "The annotation doesn't have a name. Do you want to use the object ID as name ?")
-        if (resp == JOptionPane.YES_OPTION) {
-           annotationName = roi.getID().toString()
+// Get the annotation name using getName() method
+String annotationName = roi.getName()
+
+// Create the annotation folder path within wsi folder
+if (annotationName == null) {
+    int resp = JOptionPane.showConfirmDialog(null, "The annotation doesn't have a name. Do you want to use the object ID as name ?")
+    if (resp == JOptionPane.YES_OPTION) {
+        annotationName = roi.getID().toString()
+    }
+    else {
+        annotationName = JOptionPane.showInputDialog("Please type in the name for the annotation.")
+        if (annotationName == null || annotationName  == "") {
+            JOptionPane.showMessageDialog(null, "No name was typed, exiting.", "Name empty", JOptionPane.ERROR_MESSAGE)
+            return -1
         }
-        else {
-            annotationName = JOptionPane.showInputDialog("Please type in the name for the annotation.")
-            if (annotationName == null || annotationName  == "") {
-                JOptionPane.showMessageDialog(null, "No name was typed, exiting.", "Name empty", JOptionPane.ERROR_MESSAGE)
-                return -1
-            }
-        }
     }
-
-    String annotationFolderPath = buildFilePath(imageFolder, annotationName)
-
-    // Check if annotation folder exists, create if not
-    if (!new File(annotationFolderPath).exists()) {
-        new File(annotationFolderPath).mkdirs()
-    }
-
-    // Build the final JSON file path within the annotation folder
-    String fileOutput = buildFilePath(annotationFolderPath, annotationName + ".json")
-
-    // Write (save) the JSON file
-    var gson = GsonTools.getInstance(true)
-    try (Writer writer = new FileWriter(fileOutput)) {
-        gson.toJson(roi, writer)
-    } catch (IOException e) {
-        e.printStackTrace()
-        JOptionPane.showMessageDialog(null, "An error occured during the writing of the JSON file.",
-        "Error", JOptionPane.ERROR_MESSAGE)
-        return -1
-    }
-
-    // PARTIE IMAGE
-    // Chargez l'image à partir du chemin
-    var originalImage = new OpenslideImageServer(QP.getCurrentImageData().getServer().getURIs()[0])
-
-    // Obtenez la région sélectionnée (ROI)
-    var region = roi.getROI()
-  
-    // Obtenez les coordonnées de la région
-    int  x = region.getBoundsX()
-    int  y = region.getBoundsY()
-    int width = region.getBoundsWidth()
-    int height = region.getBoundsHeight()
-
-    // Découpez la région de l'image originale
-    BufferedImage regionImage = originalImage.readRegion(DOWNSAMPLE_FACTOR_PNG, x, y, width, height)
-
-    // Construisez le chemin de sortie pour l'image PNG
-    String imageOutputPath = buildFilePath(annotationFolderPath, annotationName + ".png")
-
-    // Enregistrez l'image découpée au format PNG
-    ImageIO.write(regionImage, "png", new File(imageOutputPath))
 }
+
+String annotationFolderPath = buildFilePath(imageFolder, annotationName)
+
+// Check if annotation folder exists, create if not
+if (!new File(annotationFolderPath).exists()) {
+    new File(annotationFolderPath).mkdirs()
+}
+
+// Build the final JSON file path within the annotation folder
+String fileOutput = buildFilePath(annotationFolderPath, annotationName + ".json")
+
+// Write (save) the JSON file
+var gson = GsonTools.getInstance(true)
+try (Writer writer = new FileWriter(fileOutput)) {
+    gson.toJson(roi, writer)
+} catch (IOException e) {
+    e.printStackTrace()
+    JOptionPane.showMessageDialog(null, "An error occured during the writing of the JSON file.",
+    "Error", JOptionPane.ERROR_MESSAGE)
+    return -1
+}
+
+// PARTIE IMAGE
+// Chargez l'image à partir du chemin
+var originalImage = new OpenslideImageServer(QP.getCurrentImageData().getServer().getURIs()[0])
+
+// Obtenez la région sélectionnée (ROI)
+   var region = roi.getROI()
+  
+// Obtenez les coordonnées de la région
+int  x = region.getBoundsX()
+int  y = region.getBoundsY()
+int width = region.getBoundsWidth()
+int height = region.getBoundsHeight()
+
+// Découpez la région de l'image originale
+BufferedImage regionImage = originalImage.readRegion(DOWNSAMPLE_FACTOR_PNG, x, y, width, height)
+
+// Construisez le chemin de sortie pour l'image PNG
+String imageOutputPath = buildFilePath(annotationFolderPath, annotationName + ".png")
+
+// Enregistrez l'image découpée au format PNG
+ImageIO.write(regionImage, "png", new File(imageOutputPath))
 
 if (DISPLAY_HEATMAPS) {
     int res = JOptionPane.showOptionDialog(new JFrame(), "Do you want to display previous heatmap on this image ?", "Heatmap",
@@ -312,7 +314,10 @@ try {
     // create python command-line
     ProcessBuilder processBuilder = new ProcessBuilder(pythonExecutable, pythonScript, 
     '--outputPath', imageFolder, 
-    '--wsiPath', path)
+    '--wsiPath', path,
+    "--task", task,
+    "--url", DASH_URL,
+    "--port", DASH_PORT)
     
     // launch python script
     processBuilder.inheritIO()
