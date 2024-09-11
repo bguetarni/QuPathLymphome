@@ -1,0 +1,1 @@
+{"vit_config": {"in_chans": 3072, "embed_dim": 128, "depth": 3, "num_heads": 2, "mlp_ratio": 3.0}, "num_classes": 2}
