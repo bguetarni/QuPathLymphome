@@ -47,8 +47,10 @@ DASH_PORT = "8050"
 // ============   PYTHON ERROR CODES   ================
 
 PYTHON_ERROR = [
-    3: "WSI file was not found.",
-    4: "Annotation file was not found",
+    3: "JSON annotation file was not found",
+    4: "more than 1 JSON annotation file was not found, confusion !",
+    5: "error while reading a JSON annotation file",
+    6: "more than 1 annotation found in JSON file",
 ]
 
 // ====================================================
@@ -68,7 +70,7 @@ private static String chooseDirectory(String message) {
 }
 
 def displayHeatMapOnQupath(imageFolder) {
-    selectObjects { p -> (p.getLevel() == 1) && (p.isAnnotation() == false) };
+    selectObjects { p -> (p.getLevel() == 1) && (p.isAnnotation() == false) }
     clearSelectedObjects(false)
 
     // Utiliser Files pour parcourir tous les fichiers du répertoire
@@ -128,7 +130,7 @@ def displayHeatMapOnQupath(imageFolder) {
             // Ajouter tous les objets de détection au projet QuPath
             addObjects(detections)
             } catch (Exception e) {
-                println("Erreur lors de la lecture du fichier: " + filePath.toString())
+                print("Erreur lors de la lecture du fichier: " + filePath.toString())
                 e.printStackTrace()
             }
         }
@@ -159,13 +161,11 @@ String selectTask() {
     while (frame.isVisible()) {
         Thread.sleep(100)
     }
-    
-    String task = TASKS.get(selectedValue)
 
-    return task
+    return TASKS.get(selectedValue)
 }
 
-// Check image is opened
+// Check that an image is opened
 ImageData imageData = QP.getCurrentImageData()
 if (imageData == null) {
     JOptionPane.showMessageDialog(null, "No image is opened. Please open an image first.",
@@ -173,10 +173,10 @@ if (imageData == null) {
     return -1
 }
 
-// general message
+// general information message
 if (DISPLAY_GENERAL_INFORMATION) {
     JOptionPane.showMessageDialog(null,
-    "This is a general message information about the usage.\n\n \
+    "This is a general information message about the usage.\n\n \
 In this tool, two options are available: \n \
      DLBCL subtyping \n \
      DLBCL treatment response prediction \n\n \
@@ -313,7 +313,7 @@ try {
     
     // create python command-line
     ProcessBuilder processBuilder = new ProcessBuilder(pythonExecutable, pythonScript, 
-    '--outputPath', imageFolder, 
+    '--outputPath', annotationFolderPath, 
     '--wsiPath', path,
     "--task", task,
     "--url", DASH_URL,
