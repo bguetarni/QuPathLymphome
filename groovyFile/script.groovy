@@ -1,13 +1,16 @@
 /* groovylint-disable JavaIoPackageAccess, LineLength */
 import java.awt.image.BufferedImage
+import java.awt.BorderLayout
 import java.nio.file.Files
 import java.nio.file.Paths
 import javax.imageio.ImageIO
 import javax.swing.JFileChooser
 import javax.swing.JFrame
+import javax.swing.JList
+import javax.swing.JScrollPane
 import javax.swing.JOptionPane
-import java.time.LocalDate
-import java.time.LocalTime
+import javax.swing.JButton
+import javax.swing.ListSelectionModel
 
 import com.google.gson.JsonArray
 import com.google.gson.JsonElement
@@ -19,6 +22,36 @@ import qupath.lib.objects.PathObjects
 import qupath.lib.roi.ROIs
 import qupath.lib.regions.ImagePlane
 import qupath.lib.objects.classes.PathClassFactory
+
+
+// ==============   SCRIPT CONSTANTS   =================
+
+PYTHON_ENV_NAME = "pythonEnv"
+SCRIPT_NAME = "launchApp.py"
+
+TASKS = ["molecular subtyping": "subtyping", "treatment response": "treatment"]
+
+DISPLAY_HEATMAPS = false
+
+DISPLAY_GENERAL_INFORMATION = true
+
+DOWNSAMPLE_FACTOR_PNG = 1.5
+
+DASH_URL = "127.0.0.1"
+DASH_PORT = 8050
+
+// ====================================================
+
+
+
+// ============   PYTHON ERROR CODES   ================
+
+PYTHON_ERROR = [
+    3: "WSI file was not found.",
+    4: "Annotation file was not found",
+]
+
+// ====================================================
 
 
 private static String chooseDirectory(String message) {
@@ -102,15 +135,35 @@ def displayHeatMapOnQupath(imageFolder) {
     }
 }
 
+String selectTask() {
+    def frame = new JFrame("Select an Option")
+    def list = new JList(TASKS.keySet()  as Object[])
+    list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION)
+    def scrollPane = new JScrollPane(list)
+    def button = new JButton("Select")
+    def selectedValue = null
 
-PYTHON_ENV_NAME = "pythonEnv"
-SCRIPT_NAME = "launchApp.py"
+    button.addActionListener {
+        selectedValue = list.getSelectedValue()
+        frame.dispose()
+    }
 
-DOWNSAMPLE_FACTOR_PNG = 1.5
+    frame.setLayout(new BorderLayout())
+    frame.add(scrollPane, BorderLayout.CENTER)
+    frame.add(button, BorderLayout.SOUTH)
+    frame.setSize(300, 200)
+    frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE)
+    frame.setVisible(true)
 
-DASH_URL = ""
-DASH_PORT = 8050
+    // Wait for the user to select an option
+    while (frame.isVisible()) {
+        Thread.sleep(100)
+    }
+    
+    String task = TASKS.get(selectedValue)
 
+    return task
+}
 
 // Check image is opened
 ImageData imageData = QP.getCurrentImageData()
@@ -120,14 +173,37 @@ if (imageData == null) {
     return -1
 }
 
-// Check annotation is selected
+// general message
+if (DISPLAY_GENERAL_INFORMATION) {
+    JOptionPane.showMessageDialog(null,
+    "This is a general message information about the usage.\n\n \
+In this tool, two options are available: \n \
+     DLBCL subtyping \n \
+     DLBCL treatment response prediction \n\n \
+Manual annotations have to be selected in order to perform the task.",
+    "General information", JOptionPane.INFORMATION_MESSAGE)
+}
+
+// Select the task to perform
+String task = selectTask()
+if (task == null) {
+    JOptionPane.showMessageDialog(null, "No task was selected. Exiting.",
+    "Error no task", JOptionPane.ERROR_MESSAGE)
+    return -1
+}
+
+// Check at least one annotation is selected
 var rois = selectedObjects
 if (rois.size() == 0) {
     JOptionPane.showMessageDialog(null, "No annotation is selected. Please select an annotation and give it a name.",
     "Error of selected annotation", JOptionPane.ERROR_MESSAGE)
     return -1
 }
-
+else if (rois.size() > 1) {
+    JOptionPane.showMessageDialog(null, "More than 1 annotation was detected, please only select one annotation.",
+    "Error of selected annotation", JOptionPane.ERROR_MESSAGE)
+    return -1
+}
 
 // Optional output path (can be removed)
 String pathOutput = chooseDirectory("Choose the QupathLymphoma folder")
@@ -210,12 +286,14 @@ for (roi in rois) {
     ImageIO.write(regionImage, "png", new File(imageOutputPath))
 }
 
+if (DISPLAY_HEATMAPS) {
+    int res = JOptionPane.showOptionDialog(new JFrame(), "Do you want to display previous heatmap on this image ?", "Heatmap",
+    JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE, null,
+    new Object[] { 'Yes', 'No' }, JOptionPane.YES_OPTION)
 
-int res = JOptionPane.showOptionDialog(new JFrame(), "Do you want to display previous heatmap on this image ?", "Heatmap",
-     JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE, null,
-     new Object[] { 'Yes', 'No' }, JOptionPane.YES_OPTION)
-if (res == JOptionPane.YES_OPTION) {
-    displayHeatMapOnQupath(imageFolder)
+    if (res == JOptionPane.YES_OPTION) {
+        displayHeatMapOnQupath(imageFolder)
+    }    
 }
 
 try {
@@ -227,21 +305,26 @@ try {
         return -1
     }
     
-    String outputFolder = buildFilePath(pathOutput, "blendmaps2")
-    
-    String pythonScript = buildFilePath(outputFolder, SCRIPT_NAME)
+    String pythonScript = buildFilePath(pathOutput, "blendmaps2", SCRIPT_NAME)
     
     String path = QP.getCurrentImageData().getServer().getURIs()[0].getPath().substring(1)
     
+    // create python command-line
     ProcessBuilder processBuilder = new ProcessBuilder(pythonExecutable, pythonScript, 
     '--outputPath', imageFolder, 
     '--wsiPath', path)
-
+    
+    // launch python script
     processBuilder.inheritIO()
     Process process = processBuilder.start()
     print("Executing python script...")
     int exitCode = process.waitFor()
+    
+    // display potential error message
     print("Python script exited with code " + exitCode)
+    if(PYTHON_ERROR.containsKey(exitCode)) {
+        print(PYTHON_ERROR[exitCode])
+    }
 } catch (IOException | InterruptedException e) {
     JOptionPane.showMessageDialog(null, "An exceptio occured during the attempt to launch the python code.",
     "Exception error", JOptionPane.ERROR_MESSAGE)
