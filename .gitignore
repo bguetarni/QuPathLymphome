@@ -30,3 +30,6 @@ data/
 pythonEnv/
 examples/169C.tif
 blendmaps2/logs/
+.vscode/launch.json
+pythonEnvbis/
+blendmaps2/libraries/models/checkpoints/HIPT/vit256_small_dino.pth

@@ -40,6 +40,8 @@ DOWNSAMPLE_FACTOR_PNG = 1.5
 DASH_URL = "127.0.0.1"
 DASH_PORT = "8050"
 
+FOUNDATIONMODEL = "double"
+
 // ====================================================
 
 
@@ -51,6 +53,7 @@ PYTHON_ERROR = [
     4: "more than 1 JSON annotation file was not found, confusion !",
     5: "error while reading a JSON annotation file",
     6: "more than 1 annotation found in JSON file",
+    7: "error during model prediction",
 ]
 
 // ====================================================
@@ -195,7 +198,7 @@ if (task == null) {
 // Check at least one annotation is selected
 var rois = selectedObjects
 if (rois.size() == 0) {
-    JOptionPane.showMessageDialog(null, "No annotation is selected. Please select an annotation and give it a name.",
+    JOptionPane.showMessageDialog(null, "No annotation is selected. Please select an annotation and give it a name (optional).",
     "Error of selected annotation", JOptionPane.ERROR_MESSAGE)
     return -1
 }
@@ -245,7 +248,7 @@ if (annotationName == null) {
     }
 }
 
-String annotationFolderPath = buildFilePath(imageFolder, annotationName)
+String annotationFolderPath = buildFilePath(imageFolder, annotationName, task)
 
 // Check if annotation folder exists, create if not
 if (!new File(annotationFolderPath).exists()) {
@@ -266,12 +269,13 @@ try (Writer writer = new FileWriter(fileOutput)) {
     return -1
 }
 
+/*
 // PARTIE IMAGE
 // Chargez l'image à partir du chemin
 var originalImage = new OpenslideImageServer(QP.getCurrentImageData().getServer().getURIs()[0])
 
 // Obtenez la région sélectionnée (ROI)
-   var region = roi.getROI()
+var region = roi.getROI()
   
 // Obtenez les coordonnées de la région
 int  x = region.getBoundsX()
@@ -287,6 +291,7 @@ String imageOutputPath = buildFilePath(annotationFolderPath, annotationName + ".
 
 // Enregistrez l'image découpée au format PNG
 ImageIO.write(regionImage, "png", new File(imageOutputPath))
+*/
 
 if (DISPLAY_HEATMAPS) {
     int res = JOptionPane.showOptionDialog(new JFrame(), "Do you want to display previous heatmap on this image ?", "Heatmap",
@@ -317,7 +322,8 @@ try {
     '--wsiPath', path,
     "--task", task,
     "--url", DASH_URL,
-    "--port", DASH_PORT)
+    "--port", DASH_PORT,
+    "--foundation_model", FOUNDATIONMODEL)
     
     // launch python script
     processBuilder.inheritIO()
