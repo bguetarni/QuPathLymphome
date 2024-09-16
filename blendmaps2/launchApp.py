@@ -25,27 +25,45 @@ from libraries import utils
 # depend on the model training
 MAGNIFICATION_LEVEL = {"subtyping": 1, "treatment": 1}
 
-def gather_data(cwd):
+def gather_data(cwd, logger):
     """
     Gather the data of all annotations
 
     args:
         cwd (str): current working directory
+        logger: to log information
     """
     df = []
-    for file_ in glob.glob(os.path.join(cwd, "data", "*", "*", "*", "*.json")):
-        base, name = os.path.split(file_)
-        name = os.path.splitext(name)[0]
+    for annotation_path in glob.glob(os.path.join(cwd, "data", "*", "*", "*")):
 
-        base, task = os.path.split(base)
+        base, task = os.path.split(annotation_path)
         base, annotation = os.path.split(base)
         base, wsi = os.path.split(base)
 
-        if os.path.exists(file_):
-            with open(file_, "r") as json_file:
-                data = json.load(json_file)
-        
-        df.append({"wsi": wsi, "annotation": annotation, "task": task, "type": name, "data": data})
+        logger.info("check image exists")
+        if os.path.exists(os.path.join(annotation_path, "image.png")):
+            image_path = os.path.join(annotation_path, "image.png")
+        else:
+            continue
+
+        logger.info("check prediction file exists")
+        if os.path.exists(os.path.join(annotation_path, "predictions.json")):
+            with open(os.path.join(annotation_path, "predictions.json"), "r") as json_file:
+                predictions = json.load(json_file)
+                class_, pb = list(predictions.items())[0]
+        else:
+            continue
+
+        logger.info("check attention score file exists")
+        if os.path.exists(os.path.join(annotation_path, "attention_scores.json")):
+            with open(os.path.join(annotation_path, "attention_scores.json"), "r") as json_file:
+                attention_scores = json.load(json_file)
+        else:
+            continue
+
+        logger.info("gather data in dictionary")
+        df.append({"wsi": wsi, "annotation": annotation, "task": task, "image": image_path, 
+                   "class": class_, "probability": pb, "attention_scores": attention_scores})
 
     return pandas.DataFrame(df)
 
@@ -59,6 +77,7 @@ if __name__ == '__main__':
     parser.add_argument("--port", type=int, default=8050, help="port to run dashapp")
     parser.add_argument("--wsiPath", type=str, required=True, help="absolute path to the WSI file")
     parser.add_argument("--outputPath", type=str, required=True, help="absolute path to the annotation folder (to store the results)")
+    parser.add_argument("--annotationPath", type=str, required=True, help="absolute path to the annotation JSON file")
     parser.add_argument("--task", type=str, required=True, choices=["subtyping", "treatment"], help="task to perform")
     parser.add_argument("--foundation_model", type=str, default="double", choices=["single", "double"], help="which model to use for treatment response prediction \
                          single (HIPT) or double (CONCH+HIPT)")
@@ -77,17 +96,8 @@ if __name__ == '__main__':
         logger.info('{} : {}'.format(k,v))
 
     # load annotation
-    logger.info("loading annotation")
-    annotation_files = glob.glob(os.path.join(args.outputPath, "*.json"))
-    if len(annotation_files) == 0:
-        logger.info("no JSON annotation found in {}".format(args.outputPath))
-        exit(3)
-    elif len(annotation_files) > 1:
-        logger.info("more than 1 JSON annotation found in {}".format(args.outputPath))
-        exit(4)
-    
     try:
-        with open(annotation_files[0], "r") as json_file:
+        with open(args.annotationPath, "r") as json_file:
             features = json.load(json_file)
 
         cntrs = features['geometry']['coordinates']
@@ -126,15 +136,17 @@ if __name__ == '__main__':
             json.dump(attn_scores, json_file)
 
     # df = get_data_from_json(cwd)
-    logger.info("creaeting pandas.DataFrame for dash")
-    df = gather_data(cwd)
+    logger.info("creating pandas.DataFrame for dash")
+    df = gather_data(cwd, logger)
 
-    # # launch dash app
-    # base, task = os.path.split(args.outputPath)
-    # base, annotation = os.path.split(base)
-    # base, wsi = os.path.split(base)
-    # webbrowser.open_new('http://{}:{}}/'.format(args.url, args.port))
-    # app = dashboard_layout(df, wsi, annotation, task)
-    # app.run_server(host=args.url, port=args.port, debug=True, use_reloader=False)
-
+    # launch dash app
+    logger.info("extract wsi, annotation and task names")
+    base, _ = os.path.split(args.outputPath)
+    base, annotation = os.path.split(base)
+    base, wsi = os.path.split(base)
+    logger.info("opening web browser")
+    webbrowser.open_new('http://{}:{}/'.format(args.url, args.port))
+    app = dashboard_layout(df, wsi, annotation, args.task)
+    logger.info("launch dash app")
+    app.run_server(host=args.url, port=args.port, debug=True, use_reloader=False)
     exit(0)

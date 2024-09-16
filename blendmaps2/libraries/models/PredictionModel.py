@@ -149,8 +149,8 @@ class SubtypingModel(PredictionModel):
         scores = []
         for i, s in enumerate(attn_scores):
             # top-left coordinates of patch within input image
-            x = math.floor(((i * self.patch_size) % img.size[0]) / self.patch_size)
-            y = math.floor((i * self.patch_size) / img.size[1])
+            x = math.floor(((i * self.patch_size) % img.size[0]) / self.patch_size) * self.patch_size
+            y = math.floor((i * self.patch_size) / img.size[1]) * self.patch_size
             
             # save box coordinates of patch and attention score
             scores.append({"x0": x, "y0": y, "x1": x + self.patch_size, "y1": y + self.patch_size,

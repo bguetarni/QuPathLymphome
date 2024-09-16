@@ -26,7 +26,7 @@ import qupath.lib.objects.classes.PathClassFactory
 
 // ==============   SCRIPT CONSTANTS   =================
 
-PYTHON_ENV_NAME = "pythonEnv"
+PYTHON_ENV_NAME = "pythonEnvbis"
 SCRIPT_NAME = "launchApp.py"
 
 TASKS = ["molecular subtyping": "subtyping", "treatment response": "treatment"]
@@ -40,7 +40,7 @@ DOWNSAMPLE_FACTOR_PNG = 1.5
 DASH_URL = "127.0.0.1"
 DASH_PORT = "8050"
 
-FOUNDATIONMODEL = "double"
+FOUNDATIONMODEL = "single"
 
 // ====================================================
 
@@ -319,6 +319,7 @@ try {
     // create python command-line
     ProcessBuilder processBuilder = new ProcessBuilder(pythonExecutable, pythonScript, 
     '--outputPath', annotationFolderPath, 
+    "--annotationPath", fileOutput,
     '--wsiPath', path,
     "--task", task,
     "--url", DASH_URL,

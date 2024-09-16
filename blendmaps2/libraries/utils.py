@@ -1,5 +1,3 @@
-import numpy as np
-
 def transform_coordinates(wsi, p, source_level, target_level):
     """
     args:
