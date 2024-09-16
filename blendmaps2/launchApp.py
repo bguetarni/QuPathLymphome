@@ -1,25 +1,10 @@
-import os
-
-############################  OPENSLIDE  #################################
-# The path can also be read from a config file, etc.
-OPENSLIDE_PATH = r"C:\Users\bilel.guetarni\openslide-win64-20230414\bin"
-
-if hasattr(os, 'add_dll_directory'):
-    # Python >= 3.8 on Windows
-    with os.add_dll_directory(OPENSLIDE_PATH):
-        import openslide
-else:
-    import openslide
-##########################################################################
-
-import argparse, logging, time, json, glob
-import numpy as np
+import os, argparse, logging, time, json, glob
 import pandas
 import webbrowser
+from PIL import Image
 
 from libraries.layout_dashboard import dashboard_layout
 from libraries.models import PredictionModel
-from libraries import utils
 
 # for each task, specify which magnification level to extract the area
 # depend on the model training
@@ -95,28 +80,9 @@ if __name__ == '__main__':
     for k, v in vars(args).items():
         logger.info('{} : {}'.format(k,v))
 
-    # load annotation
-    try:
-        with open(args.annotationPath, "r") as json_file:
-            features = json.load(json_file)
-
-        cntrs = features['geometry']['coordinates']
-        cntrs = np.array(cntrs).reshape((-1, 2))
-    except json.JSONDecodeError as e:
-        exit(5)
-
-    x, y = cntrs[0]
-    x1, y1 = cntrs[2]
-
-    # read region
-    logger.info("extracting RGB region from wsi file")
-    wsi = openslide.OpenSlide(args.wsiPath)
-    size = utils.calculate_region_size(wsi, (x,y), (x1, y1), target_level=MAGNIFICATION_LEVEL[args.task])
-    img = wsi.read_region(location=(x,y), level=MAGNIFICATION_LEVEL[args.task], size=size).convert("RGB")
-
     # save image to annotation folder
-    logger.info("saving RGB region in png file")
-    img.save(os.path.join(args.outputPath, "image.png"))
+    logger.info("load png image")
+    img = Image.open(os.path.join(args.outputPath, "image.png"))
 
     # apply prediction model
     logger.info("loading prediction model")

@@ -42,6 +42,11 @@ DASH_PORT = "8050"
 
 FOUNDATIONMODEL = "single"
 
+MAGNIFICATION_LEVEL = [
+    "subtyping": 1,
+    "treatment": 1
+]
+
 // ====================================================
 
 
@@ -269,29 +274,26 @@ try (Writer writer = new FileWriter(fileOutput)) {
     return -1
 }
 
-/*
-// PARTIE IMAGE
-// Chargez l'image à partir du chemin
+// Load wsi
 var originalImage = new OpenslideImageServer(QP.getCurrentImageData().getServer().getURIs()[0])
 
-// Obtenez la région sélectionnée (ROI)
+// Get region
 var region = roi.getROI()
   
-// Obtenez les coordonnées de la région
+// Get region coordinates
 int  x = region.getBoundsX()
 int  y = region.getBoundsY()
 int width = region.getBoundsWidth()
 int height = region.getBoundsHeight()
 
-// Découpez la région de l'image originale
-BufferedImage regionImage = originalImage.readRegion(DOWNSAMPLE_FACTOR_PNG, x, y, width, height)
+// read region
+BufferedImage regionImage = originalImage.readRegion(2**MAGNIFICATION_LEVEL.get(task), x, y, width, height)
 
-// Construisez le chemin de sortie pour l'image PNG
-String imageOutputPath = buildFilePath(annotationFolderPath, annotationName + ".png")
+// Path to save the region
+String imageOutputPath = buildFilePath(annotationFolderPath, "image.png")
 
-// Enregistrez l'image découpée au format PNG
+// Save the region into PNG image
 ImageIO.write(regionImage, "png", new File(imageOutputPath))
-*/
 
 if (DISPLAY_HEATMAPS) {
     int res = JOptionPane.showOptionDialog(new JFrame(), "Do you want to display previous heatmap on this image ?", "Heatmap",
