@@ -30,6 +30,9 @@ DASHBOARD_EXIT_CONFIRM = "Confirm"
 DASHBOARD_EXIT_CONFIRMATION = "Confirmation"
 DASHBOARD_EXIT_CANCEL = "Cancel"
 
+# plotly color palet to use for heatmap coloring
+PLOTLY_COLOR_PALET = px.colors.sequential.RdBu[::-1]
+
 
 def dashboard_layout(df, wsi, annotation, task):
     # external_stylesheets = [dbc.themes.BOOTSTRAP]
@@ -238,14 +241,12 @@ def dashboard_layout(df, wsi, annotation, task):
         max_ = np.max(scores)
         
         # color heatmap
-        color_palet = px.colors.sequential.Rainbow
         heatmap = np.zeros(img.shape, dtype="uint8")
         heatmap = Image.fromarray(heatmap)
         for attn_score in dff["attention_scores"].iloc[0]:
-            s = (attn_score["score"] - min_) / max_
-            color = color_palet[int(s * len(color_palet))]
-            heatmap.paste(color, (attn_score["x0"], attn_score["y0"], attn_score["x1"], 
-                                  attn_score["y1"]))
+            s = (attn_score["score"] - min_) / (max_ - min_)
+            color = PLOTLY_COLOR_PALET[int(s * (len(PLOTLY_COLOR_PALET)-1))]
+            heatmap.paste(color, (attn_score["x0"], attn_score["y0"], attn_score["x1"], attn_score["y1"]))
 
         output = cv2.addWeighted(np.asarray(heatmap), alpha, img, 1-alpha, 0)
         img_sequence.append(output)
@@ -258,6 +259,20 @@ def dashboard_layout(df, wsi, annotation, task):
         fig.update_layout(showlegend=False)
         fig.update_xaxes(visible=False)
         fig.update_yaxes(visible=False)
+        
+        colorbar_trace=go.Scatter(x=[None],
+             y=[None],
+             mode='markers',
+             marker=dict(
+                 colorscale=PLOTLY_COLOR_PALET, 
+                 showscale=True,
+                 cmin=-5,
+                 cmax=5,
+                 colorbar=dict(thickness=10, tickvals=[-5, 5], ticktext=['Low', 'High']), 
+             ),
+             hoverinfo='none'
+            )
+        fig.add_trace(colorbar_trace)
         
         #set  facet titles
         for i, name in enumerate(names):
