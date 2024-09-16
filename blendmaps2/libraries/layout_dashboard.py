@@ -12,8 +12,8 @@ import plotly.graph_objects as go
 import plotly.express as px
 
 # Info displayed on the dashboard
-DASHBOARD = "Dashboard"
-DASHBOARD_TITLE = "Clinics analysis"
+DASHBOARD = "AI-based DLBCL diagnosis"
+DASHBOARD_TITLE = "AI for DLBCL"
 DASHBOARD_QUIT = "You have left the application..."
 DASHBOARD_UNAVAILABLE = "Website is unavailable."
 DASHBOARD_CHOOSE_IMAGE = "Choose an image"
@@ -22,8 +22,8 @@ DASHBOARD_CHOOSE_TASK = "Choose the task"
 DASHBOARD_ANNOTATION_HEATMAP = "Annotation and Heatmap"
 DASHBOARD_OPAQUE = "Set opacity"
 DASHBOARD_HTM_2 = "Heatmap"
-DASHBOARD_BOXPLOT = "Boxplot of lymphoma probabilities"
-DASHBOARD_FILTER = "Filter lymphoma probability by tile"
+DASHBOARD_BOXPLOT = "Attention scores distribution"
+DASHBOARD_FILTER = "Filter scores"
 DASHBOARD_EXIT_BUTTON = "Exit"
 DASHBOARD_EXIT_CONFIRM_TEXT = "Are you sure you want to exit?"
 DASHBOARD_EXIT_CONFIRM = "Confirm"

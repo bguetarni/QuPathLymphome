@@ -2,7 +2,6 @@ import os, json, math
 import torch
 import torchvision
 import torch.nn.functional as F
-import numpy as np
 from PIL import Image
 
 from .visiontransformer import MultiStainViTStudent
@@ -68,12 +67,13 @@ class PredictionModel:
 
         # patching
         #TODO: filter patches without tissue (based on bright values)
-        patches = []
-        for y in range(0, img.size[1] - patch_size + 1, patch_size):
-            for x in range(0, img.size[0] - patch_size + 1, patch_size):
+        patches, xy = [], []
+        for y in range(0, img.size[1], patch_size):
+            for x in range(0, img.size[0], patch_size):
                 patches.append(img.crop((x, y, x + patch_size, y + patch_size)))
+                xy.append((x, y))
 
-        return patches
+        return patches, xy
         
 
 class SubtypingModel(PredictionModel):
@@ -105,7 +105,7 @@ class SubtypingModel(PredictionModel):
         """
         
         # patching
-        x = super().patching(img, self.patch_size, zero_padding=True)
+        x, coord = super().patching(img, self.patch_size, zero_padding=True)
 
         # convert to torch.Tensor
         x = list(map(torchvision.transforms.functional.pil_to_tensor, x))
@@ -121,14 +121,14 @@ class SubtypingModel(PredictionModel):
         with torch.no_grad():
             pred, attn_scores = self.model(x)
         
-        return self.post_process(pred, attn_scores, img)
+        return self.post_process(pred, attn_scores, coord)
     
-    def post_process(self, prediction, attn_scores, img):
+    def post_process(self, prediction, attn_scores, coord):
         """
         args:
             prediction (torch.Tensor): prediction of model
             attn_scores (torch.Tensor): list of attention scores
-            img (PIL.Image) input image
+            coord (List) list of coordinates of patches inside image
         """
         
         # transform scores into probability
@@ -147,11 +147,10 @@ class SubtypingModel(PredictionModel):
 
         # construct dict of coordinates with attention score
         scores = []
-        for i, s in enumerate(attn_scores):
+        for s, xy in zip(attn_scores, coord):
             # top-left coordinates of patch within input image
-            x = math.floor(((i * self.patch_size) % img.size[0]) / self.patch_size) * self.patch_size
-            y = math.floor((i * self.patch_size) / img.size[1]) * self.patch_size
-            
+            x, y = xy
+
             # save box coordinates of patch and attention score
             scores.append({"x0": x, "y0": y, "x1": x + self.patch_size, "y1": y + self.patch_size,
                            "score": s.item()})
@@ -190,21 +189,21 @@ class TreatmentResponseModel(PredictionModel):
         """
 
         # patching
-        x = super().patching(img, self.patch_size, zero_padding=True)
+        x, coord = super().patching(img, self.patch_size, zero_padding=True)
 
         # model prediction
         with torch.no_grad():
             pred, attn_scores = self.model(x)
 
         # return pred, attn_scores
-        return self.post_process(pred, attn_scores, img)
+        return self.post_process(pred, attn_scores, coord)
     
-    def post_process(self, prediction, attn_scores, img):
+    def post_process(self, prediction, attn_scores, coord):
         """
         args:
             prediction (torch.Tensor): prediction of model
             attn_scores (torch.Tensor): list of attention scores
-            img (PIL.Image) input image
+            coord (List) list of coordinates of patches inside image
         """
         
         # transform scores into probability
@@ -222,10 +221,9 @@ class TreatmentResponseModel(PredictionModel):
 
         # construct dict of coordinates with attention score
         scores = []
-        for i, s in enumerate(attn_scores):
+        for s, xy in zip(attn_scores, coord):
             # top-left coordinates of patch within input image
-            x = math.floor((((i-1) * self.patch_size) % img.size[0]) / self.patch_size)
-            y = math.floor(((i-1) * self.patch_size) / img.size[1])
+            x, y = xy
 
             # save box coordinates of patch and attention score
             scores.append({"x0": x, "y0": y, "x1": x + self.patch_size, "y1": y + self.patch_size, 
